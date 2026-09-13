@@ -156,7 +156,7 @@ client.on('messageCreate', async (message) => {
   if (content === 'hello' || content === 'hi ghost') message.reply('Hello! Welcome to GHOSTMC 👻');
   if (content.includes('ip kya hai') || content === 'ip') message.reply('🌍 **GHOSTMC IP:** `upcomming` | Version 1.20+');
 });
-// ---------- GIVEAWAY SYSTEM ----------
+// ---------- GIVEAWAY SLASH SYSTEM ----------
 function parseTime(s) {
   let num = parseInt(s.slice(0, -1));
   let unit = s.slice(-1);
@@ -167,38 +167,48 @@ function parseTime(s) {
   return null;
 }
 
-client.on('messageCreate', async (message) => {
-  if (message.author.bot) return;
-  if (message.content.startsWith('/gstart') == false) return;
+client.once('ready', async () => {
+  const { REST, Routes, SlashCommandBuilder } = require('discord.js');
+  const commands = [
+    new SlashCommandBuilder()
+  .setName('gstart')
+  .setDescription('Giveaway start karo')
+  .addStringOption(o => o.setName('duration').setDescription('10m, 1h, 1d').setRequired(true))
+  .addIntegerOption(o => o.setName('winners').setDescription('Kitne winners').setRequired(true))
+  .addStringOption(o => o.setName('prize').setDescription('Prize kya hai').setRequired(true))
+  ].map(c => c.toJSON());
+  const rest = new REST();
+  rest.setToken(process.env.TOKEN);
+  await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
+  console.log('Slash /gstart registered!');
+});
 
-  let args = message.content.split(' ');
-  if (args.length < 4) return message.reply('Use: /gstart 10m 1 Nitro');
-
-  let durationStr = args[1];
-  let winnersCount = parseInt(args[2]);
-  let prize = args.slice(3).join(' ');
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+  if (interaction.commandName!= 'gstart') return;
+  let durationStr = interaction.options.getString('duration');
+  let winnersCount = interaction.options.getInteger('winners');
+  let prize = interaction.options.getString('prize');
   let ms = parseTime(durationStr);
-  if (!ms) return message.reply('Duration galat! 10m, 1h, 1d me likho');
-
-  let embed = new EmbedBuilder()
+  if (!ms) return interaction.reply({ content: 'Duration galat! 10m, 1h, 1d me likho', ephemeral: true });
+  let embed = new (require('discord.js').EmbedBuilder)()
 .setTitle('GIVEAWAY')
 .setDescription('Prize: ' + prize + '\nWinners: ' + winnersCount + '\nDuration: ' + durationStr + '\n\nReact karo!')
 .setColor(0xFF00FF)
-.setFooter({ text: 'Hosted by ' + message.author.tag });
-
-  let msg = await message.channel.send({ embeds: [embed] });
+.setFooter({ text: 'Hosted by ' + interaction.user.tag });
+  let msg = await interaction.channel.send({ embeds: [embed] });
   await msg.react('🎉');
-
+  await interaction.reply({ content: 'Giveaway start ho gaya!', ephemeral: true });
   setTimeout(async () => {
-    let newMsg = await message.channel.messages.fetch(msg.id);
+    let newMsg = await interaction.channel.messages.fetch(msg.id);
     let reaction = newMsg.reactions.cache.get('🎉');
     if (!reaction) return;
     let users = await reaction.users.fetch();
     let realUsers = users.filter(u =>!u.bot);
-    if (realUsers.size == 0) return message.channel.send('Giveaway ' + prize + ' me koi join nahi hua.');
+    if (realUsers.size == 0) return interaction.channel.send('Giveaway ' + prize + ' me koi join nahi hua.');
     let winners = realUsers.random(Math.min(winnersCount, realUsers.size));
     let mentions = winners.map(w => '<@' + w.id + '>').join(', ');
-    message.channel.send('GIVEAWAY KHATAM\nPrize: ' + prize + '\nWinner: ' + mentions);
+    interaction.channel.send('GIVEAWAY KHATAM\nPrize: ' + prize + '\nWinner: ' + mentions);
   }, ms);
 });
 
