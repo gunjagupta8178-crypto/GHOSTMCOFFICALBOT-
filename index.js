@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
-app.get('/', (req, res) => res.send('Bot is Online!'));
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
+app.get('/', (req, res) => res.send('GHOSTMC BOT IS ONLINE'));
 app.listen(PORT, () => console.log(`Web server ready on ${PORT}`));
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const client = new Client({
