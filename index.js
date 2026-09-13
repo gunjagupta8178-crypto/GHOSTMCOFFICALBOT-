@@ -1,10 +1,13 @@
 const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 10000;
-app.get('/', (req, res) => res.send('GHOSTMC BOT IS ONLINE'));
-app.get('/ping', (req, res) => res.send('BOT PING OK'));
-app.use((req, res) => res.send('GHOSTMC BOT IS ONLINE'));
-app.listen(PORT, () => console.log(`Web server ready on ${PORT}`));
+
+app.get('/', (req,res) => res.send('GHOSTMC BOT IS ONLINE'));
+app.get('/ping', (req,res) => res.send('PING OK'));
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Web server ready on ${PORT}`);
+});
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const client = new Client({
   intents: [
