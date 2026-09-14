@@ -185,7 +185,6 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
 const CATEGORY_ID = '1547898407782449173';
 const PANEL_CHANNEL_ID = '1547898434026177534';
 
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 
 client.on('interactionCreate', async (interaction) => {
   // BUTTON HANDLE
