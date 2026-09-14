@@ -8,6 +8,9 @@ app.get('/ping', (req,res) => res.send('PING OK'));
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Web server ready on ${PORT}`);
 });
+const TOKEN = process.env.TOKEN;
+const CLIENT_ID = '1548275406065508413';
+const GUILD_ID = '1547220764762312704';
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const client = new Client({
   intents: [
