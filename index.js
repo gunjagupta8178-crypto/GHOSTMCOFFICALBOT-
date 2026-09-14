@@ -159,115 +159,43 @@ client.on('messageCreate', async (message) => {
   if (content === 'hello' || content === 'hi ghost') message.reply('Hello! Welcome to GHOSTMC 👻');
   if (content.includes('ip kya hai') || content === 'ip') message.reply('🌍 **GHOSTMC IP:** `upcomming` | Version 1.20+');
 });
-// --- /gstart SLASH COMMAND ---
-
-const gstart = new SlashCommandBuilder()
-.setName('gstart')
-.setDescription('Giveaway start karo')
-.addStringOption(o => o.setName('prize').setDescription('Prize kya hai?').setRequired(true))
-.addIntegerOption(o => o.setName('winners').setDescription('Kitne winners?').setRequired(true))
-.addStringOption(o => o.setName('duration').setDescription('Duration ex: 10m, 1h').setRequired(true));
-
-const setupCommand = new SlashCommandBuilder()
-.setName('setup-ticket')
-.setDescription('Ticket panel bhejo');
-
-const commands = [gstart, setupCommand].map(cmd => cmd.toJSON());
-
-// --- SLASH COMMAND REGISTER (yahi / wala banata hai) ---
-const rest = new REST({ version: '10' }).setToken(TOKEN);
-(async () => {
-  await rest.put(
-    Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-    { body: commands }
-  );
-  console.log('/gstart + /setup-ticket ready!');
-})();
-
-// --- GHOSTMC TICKET SYSTEM + GIVEAWAY HANDLE ---
-const CATEGORY_ID = '1547898407782449173';
-const PANEL_CHANNEL_ID = '1547898434026177534';
-
+// === GIVEAWAY SYSTEM (Fixed) ===
+const giveaways = new Map(); // messageId -> data
 
 client.on('interactionCreate', async (interaction) => {
-  // BUTTON HANDLE
-  if (interaction.isButton()) {
-    if (interaction.customId === 'giveaway_join') {
-        return interaction.reply({ content: `🎉 <@${interaction.user.id}> ne Giveaway join kiya!`, ephemeral: true });
+  if (!interaction.isChatInputCommand()) return;
+
+  // /gstart command
+  if (interaction.commandName === 'gstart') {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+      return interaction.reply({ content: 'Tujhe Manage Messages ka permission chahiye!', ephemeral: true });
     }
 
-    const labelMap = {
-        'buy_ticket': 'Buy',
-        'claim_ticket': 'Claim Rewards',
-        'staff_ticket': 'Staff Report',
-        'player_ticket': 'Player Report',
-        'bug_ticket': 'Bug Report'
-    };
-    const label = labelMap[interaction.customId];
-    if (!label) return;
-
-    const category = interaction.guild.channels.cache.get(CATEGORY_ID);
-    const channel = await interaction.guild.channels.create({
-        name: `${label.toLowerCase().replace(/ /g, '-')}-${interaction.user.username}`,
-        type: ChannelType.GuildText,
-        parent: category?.id,
-        permissionOverwrites: [
-            { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-            { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-            { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-        ]
-    });
-
-    const embed = new EmbedBuilder()
-      .setTitle(`${label} Ticket`)
-      .setDescription(`${interaction.user} ne **${label}** ke liye ticket khola hai.`)
-      .setColor('Green');
-
-    await channel.send({ content: `${interaction.user}`, embeds: [embed] });
-    await interaction.reply({ content: `Ticket ban gaya: ${channel}`, ephemeral: true });
-  }
-
-  // GIVEAWAY COMMAND
-  if (interaction.isChatInputCommand() && interaction.commandName === 'gstart') {
+    const durationStr = interaction.options.getString('duration'); // ex: 10m, 1h, 1d
+    const winnersCount = interaction.options.getInteger('winners');
     const prize = interaction.options.getString('prize');
-    const winners = interaction.options.getInteger('winners');
-    const duration = interaction.options.getString('duration');
+    const channel = interaction.options.getChannel('channel') || interaction.channel;
+
+    let ms = 0;
+    if (durationStr.endsWith('s')) ms = parseInt(durationStr) * 1000;
+    if (durationStr.endsWith('m')) ms = parseInt(durationStr) * 60 * 1000;
+    if (durationStr.endsWith('h')) ms = parseInt(durationStr) * 60 * 60 * 1000;
+    if (durationStr.endsWith('d')) ms = parseInt(durationStr) * 24 * 60 * 60 * 1000;
+
+    if (!ms) return interaction.reply({ content: 'Duration galat hai! Use: 10s, 10m, 1h, 1d', ephemeral: true });
+
+    const endTime = Date.now() + ms;
 
     const embed = new EmbedBuilder()
-   .setTitle('🎉 GIVEAWAY 🎉')
-   .setDescription(`Prize: **${prize}**\nWinners: ${winners}\nTime: ${duration}`)
-   .setColor('Gold');
+     .setTitle('🎉 GIVEAWAY 🎉')
+     .setDescription(`**Prize:** ${prize}\n**Winners:** ${winnersCount}\n**Ends:** <t:${Math.floor(endTime/1000)}:R>\n\nNeeche button dabao participate karne ke liye!`)
+     .setColor(0xFF0000)
+     .setFooter({ text: `Hosted by ${interaction.user.tag}` });
 
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('giveaway_join').setLabel('Join').setStyle(ButtonStyle.Primary).setEmoji('🎉')
-    );
-    await interaction.reply({ embeds: [embed], components: [row] });
-  }
-
-  // SETUP TICKET COMMAND
-  if (interaction.isChatInputCommand() && interaction.commandName === 'setup-ticket') {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-        return interaction.reply({ content: 'Admin only!', ephemeral: true });
-    }
-    const row1 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('buy_ticket').setLabel('Buy').setStyle(ButtonStyle.Success).setEmoji('🛒'),
-        new ButtonBuilder().setCustomId('claim_ticket').setLabel('Claim Rewards').setStyle(ButtonStyle.Primary).setEmoji('🎁'),
-        new ButtonBuilder().setCustomId('staff_ticket').setLabel('Staff Report').setStyle(ButtonStyle.Danger).setEmoji('👮')
-    );
-    const row2 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('player_ticket').setLabel('Player Report').setStyle(ButtonStyle.Secondary).setEmoji('👤'),
-        new ButtonBuilder().setCustomId('bug_ticket').setLabel('Bug Report').setStyle(ButtonStyle.Secondary).setEmoji('🐛')
+      new ButtonBuilder().setCustomId('giveaway_join').setLabel('🎉 Participate').setStyle(ButtonStyle.Primary)
     );
 
-    const panelEmbed = new EmbedBuilder()
-      .setTitle('GhostMC Support')
-      .setDescription('**Neeche button dabao ticket kholne ke liye:**')
-      .setColor(0x5865F2);
-
-    const targetChannel = client.channels.cache.get(PANEL_CHANNEL_ID);
-    await targetChannel.send({ embeds: [panelEmbed], components: [row1, row2] });
-    await interaction.reply({ content: 'Panel bhej diya!', ephemeral: true });
-  }
-});
+    const msg = await channel.send({ embeds: [embed], components:
 
 client.login(process.env.TOKEN);
