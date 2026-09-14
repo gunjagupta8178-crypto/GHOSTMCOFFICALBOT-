@@ -8,7 +8,7 @@ app.get('/ping', (req,res) => res.send('PING OK'));
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Web server ready on ${PORT}`);
 });
-const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
