@@ -159,19 +159,24 @@ client.on('messageCreate', async (message) => {
   if (content === 'hello' || content === 'hi ghost') message.reply('Hello! Welcome to GHOSTMC 👻');
   if (content.includes('ip kya hai') || content === 'ip') message.reply('🌍 **GHOSTMC IP:** `upcomming` | Version 1.20+');
 });
-// === GIVEAWAY SYSTEM (Fixed) ===
-const giveaways = new Map(); // messageId -> data
+// === GIVEAWAY FULL CODE (Hoster + Winner dono ayega) ===
+const giveaways = new Map();
 
 client.on('interactionCreate', async (interaction) => {
+  if (interaction.isButton() && interaction.customId === 'giveaway_join') {
+    const data = giveaways.get(interaction.message.id);
+    if (!data) return interaction.reply({ content: 'Giveaway khatam ho gaya!', ephemeral: true });
+    data.participants.add(interaction.user.id);
+    return interaction.reply({ content: 'Ho gaya enter! 🎉', ephemeral: true });
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
-  // /gstart command
   if (interaction.commandName === 'gstart') {
     if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-      return interaction.reply({ content: 'Tujhe Manage Messages ka permission chahiye!', ephemeral: true });
+      return interaction.reply({ content: 'Permission nahi hai!', ephemeral: true });
     }
-
-    const durationStr = interaction.options.getString('duration'); // ex: 10m, 1h, 1d
+    const durationStr = interaction.options.getString('duration');
     const winnersCount = interaction.options.getInteger('winners');
     const prize = interaction.options.getString('prize');
     const channel = interaction.options.getChannel('channel') || interaction.channel;
@@ -181,21 +186,64 @@ client.on('interactionCreate', async (interaction) => {
     if (durationStr.endsWith('m')) ms = parseInt(durationStr) * 60 * 1000;
     if (durationStr.endsWith('h')) ms = parseInt(durationStr) * 60 * 60 * 1000;
     if (durationStr.endsWith('d')) ms = parseInt(durationStr) * 24 * 60 * 60 * 1000;
-
-    if (!ms) return interaction.reply({ content: 'Duration galat hai! Use: 10s, 10m, 1h, 1d', ephemeral: true });
+    if (!ms) return interaction.reply({ content: 'Duration galat! Ex: 1m, 1h, 1d', ephemeral: true });
 
     const endTime = Date.now() + ms;
 
     const embed = new EmbedBuilder()
      .setTitle('🎉 GIVEAWAY 🎉')
-     .setDescription(`**Prize:** ${prize}\n**Winners:** ${winnersCount}\n**Ends:** <t:${Math.floor(endTime/1000)}:R>\n\nNeeche button dabao participate karne ke liye!`)
+     .setDescription(`**Prize:** ${prize}\n**Winners:** ${winnersCount}\n**Hosted By:** <@${interaction.user.id}>\n**Ends:** <t:${Math.floor(endTime/1000)}:R>\n\nButton dabao join karne ke liye!`)
      .setColor(0xFF0000)
      .setFooter({ text: `Hosted by ${interaction.user.tag}` });
 
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('giveaway_join').setLabel('🎉 Participate').setStyle(ButtonStyle.Primary)
+      new ButtonBuilder().setCustomId('giveaway_join').setLabel('🎉 Participate').setStyle(ButtonStyle.Success)
     );
 
-    const msg = await channel.send({ embeds: [embed], components:
+    const msg = await channel.send({ embeds: [embed], components: [row] });
+
+    // hoster ka id save kar liya
+    giveaways.set(msg.id, { prize, winnersCount, participants: new Set(), hostId: interaction.user.id, hostTag: interaction.user.tag });
+
+    await interaction.reply({ content: `Giveaway ${channel} me start ho gaya!`, ephemeral: true });
+
+    setTimeout(async () => {
+      const data = giveaways.get(msg.id);
+      if (!data) return;
+      const list = Array.from(data.participants);
+
+      if (list.length === 0) {
+        await channel.send(`Giveaway **${data.prize}** khatam, koi join nahi hua.\nHosted By: <@${data.hostId}>`);
+      } else {
+        const winners = list.sort(() => 0.5 - Math.random()).slice(0, data.winnersCount).map(id => `<@${id}>`).join(', ');
+
+        const winEmbed = new EmbedBuilder()
+        .setTitle('🎉 GIVEAWAY ENDED 🎉')
+        .setDescription(`**Prize:** ${data.prize}\n**Hosted By:** <@${data.hostId}> (${data.hostTag})\n**Winner(s):** ${winners}`)
+        .setColor(0x00FF00)
+        .setTimestamp();
+
+        await channel.send({
+          content: `🎉 Congratulations ${winners}! You won **${data.prize}**!\nHosted by <@${data.hostId}>`,
+          embeds: [winEmbed]
+        });
+      }
+      giveaways.delete(msg.id);
+    }, ms);
+  }
+
+  if (interaction.commandName === 'gend') {
+    const messageId = interaction.options.getString('message_id');
+    const data = giveaways.get(messageId);
+    if (!data) return interaction.reply({ content: 'ID nahi mila!', ephemeral: true });
+    const list = Array.from(data.participants);
+    const winners = list.sort(() => 0.5 - Math.random()).slice(0, data.winnersCount).map(id => `<@${id}>`).join(', ') || 'Koi nahi';
+    await interaction.channel.send(`**${data.prize}** ka winner: ${winners} | Hosted by <@${data.hostId}>`);
+    giveaways.delete(messageId);
+    await interaction.reply({ content: 'End kar diya!', ephemeral: true });
+  }
+});
+
+client.login(TOKEN);
 
 client.login(process.env.TOKEN);
